@@ -9,29 +9,25 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: i386/debian:sarge
-      options: --user root
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure archive repositories for Debian Sarge
-        run: |
-          echo "deb http://archive.debian.org/debian/ sarge main" > /etc/apt/sources.list
-          echo "deb http://archive.debian.org/debian-non-US/ sarge/non-US main" >> /etc/apt/sources.list
-          echo "Acquire::Check-Valid-Time \"false\";" > /etc/apt/apt.conf.d/10no-check-valid-time
-          apt-get update || true
+      - name: Set up QEMU for 32-bit architecture emulation
+        uses: docker/setup-qemu-action@v3
 
-      - name: Install dependencies
+      - name: Build inside Debian Sarge (i386) container
         run: |
-          apt-get install -y gcc-3.3 nasm make libc6-dev libsdl1.2-dev
-
-      - name: Build intro binary
-        run: |
-          cd src
-          make intro
-          make final
+          docker run --rm --platform linux/386 -v ${{ github.workspace }}:/workspace -w /workspace debian/eol:sarge bash -c '
+            echo "deb http://archive.debian.org/debian/ sarge main" > /etc/apt/sources.list
+            echo "deb http://archive.debian.org/debian-non-US/ sarge/non-US main" >> /etc/apt/sources.list
+            echo "Acquire::Check-Valid-Time \"false\";" > /etc/apt/apt.conf.d/10no-check-valid-time
+            apt-get update || true
+            apt-get install -y gcc-3.3 nasm make libc6-dev libsdl1.2-dev
+            cd src
+            make intro
+            make final
+          '
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
